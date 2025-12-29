@@ -1,19 +1,16 @@
-name: Pull Request Build
+name: Build
 on:
-  workflow_dispatch:
-  workflow_call:
-  pull_request:
+  push:
     branches:
       - main
 jobs:
 
-  test:
+  build:
     strategy:
       matrix:
         go-version: [1.25.x]
         os: [ubuntu-24.04]
         targetplatform: [x64]
-        node-version: ['20.x', '21.x', '22.x', '23.x', '24.x']
 
     runs-on: ${{ matrix.os }}
     environment: production
@@ -58,10 +55,10 @@ jobs:
         GOOS=js GOARCH=wasm GO111MODULE=on CGO_ENABLED=0 go build -v -a -ldflags="-w -s" -gcflags=-trimpath="$(go env GOPATH)" -asmflags=-trimpath="$(go env GOPATH)" -o ../dist/excelize.wasm main.go
         gzip -f --best ../dist/excelize.wasm
 
-    - name: Setup Node.js ${{ matrix.node-version }}
+    - name: Setup Node.js
       uses: actions/setup-node@v6
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: 20.19.6
 
     - name: NPM Build
       run: |
@@ -71,3 +68,36 @@ jobs:
         cp README.md ./dist
         cp package.json ./dist
         cp src/index.d.ts ./dist
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v6
+      with:
+        name: excelize-wasm
+        path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+
+    - name: Download Artifacts
+      uses: actions/download-artifact@v7
+      with:
+        name: excelize-wasm
+        path: dist/
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: 20.19.6
+        registry-url: 'https://registry.npmjs.org'
+
+    - name: NPM Publish
+      run: |
+        cd dist
+        npm install -g npm@latest
+        npm publish

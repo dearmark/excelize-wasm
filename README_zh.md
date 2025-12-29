@@ -4,7 +4,7 @@
 
 <p align="center">
     <a href="https://www.npmjs.com/package/excelize-wasm"><img src="https://img.shields.io/npm/v/excelize-wasm.svg" alt="NPM version"></a>
-    <a href="https://github.com/xuri/excelize-wasm/actions/workflows/go.yml"><img src="https://github.com/xuri/excelize-wasm/actions/workflows/go.yml/badge.svg" alt="Build Status"></a>
+    <a href="https://github.com/xuri/excelize-wasm/actions/workflows/publish.yml"><img src="https://github.com/xuri/excelize-wasm/actions/workflows/publish.yml/badge.svg" alt="Build Status"></a>
     <a href="https://codecov.io/gh/xuri/excelize-wasm"><img src="https://codecov.io/gh/xuri/excelize-wasm/branch/main/graph/badge.svg" alt="Code Coverage"></a>
     <a href="https://goreportcard.com/report/github.com/xuri/excelize-wasm/cmd"><img src="https://goreportcard.com/badge/github.com/xuri/excelize-wasm/cmd" alt="Go Report Card"></a>
     <a href="https://pkg.go.dev/github.com/xuri/excelize/v2"><img src="https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white" alt="go.dev"></a>
@@ -29,7 +29,7 @@ Opera Mobile | &ge;64
 Samsung Internet | &ge;7.2
 UC Browser for Android | &ge;13.4
 QQ Browser | &ge;10.4
-Node.js | &ge;8.0.0
+Node.js | &ge;12.0.0
 Deno | &ge;1.0
 
 ## 快速上手
@@ -58,7 +58,11 @@ const fs = require('fs');
 
 init('./node_modules/excelize-wasm/excelize.wasm.gz').then((excelize) => {
   const f = excelize.NewFile();
-  // 创建一个工作表
+  if (f.error) {
+    console.log(f.error);
+    return;
+  }
+  // 新建一张工作表
   const { index } = f.NewSheet('Sheet2');
   // 设置单元格的值
   f.SetCellValue('Sheet2', 'A2', 'Hello world.');
@@ -95,33 +99,37 @@ init('./node_modules/excelize-wasm/excelize.wasm.gz').then((excelize) => {
     <button onclick="download()">下载</button>
   </div>
   <script>
-function download() {
-  excelizeWASM
-    .init('https://<服务器地址>/excelize-wasm/excelize.wasm.gz')
-    .then((excelize) => {
-      const f = excelize.NewFile();
-      // 创建一个工作表
-      const { index } = f.NewSheet('Sheet2');
-      // 设置单元格的值
-      f.SetCellValue('Sheet2', 'A2', 'Hello world.');
-      f.SetCellValue('Sheet1', 'B2', 100);
-      // 设置工作簿的默认工作表
-      f.SetActiveSheet(index);
-      // 根据指定路径保存文件
-      const { buffer, error } = f.WriteToBuffer();
-      if (error) {
-        console.log(error);
-        return;
-      }
-      const link = document.createElement('a');
-      link.download = 'Book1.xlsx';
-      link.href = URL.createObjectURL(
-        new Blob([buffer], {
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        })
-      );
-      link.click();
-    });
+  function download() {
+    excelizeWASM
+      .init('https://<服务器地址>/excelize-wasm/excelize.wasm.gz')
+      .then((excelize) => {
+        const f = excelize.NewFile();
+        if (f.error) {
+          console.log(f.error);
+          return;
+        }
+        // 创建一个工作表
+        const { index } = f.NewSheet('Sheet2');
+        // 设置单元格的值
+        f.SetCellValue('Sheet2', 'A2', 'Hello world.');
+        f.SetCellValue('Sheet1', 'B2', 100);
+        // 设置工作簿的默认工作表
+        f.SetActiveSheet(index);
+        // 根据指定路径保存文件
+        const { buffer, error } = f.WriteToBuffer();
+        if (error) {
+          console.log(error);
+          return;
+        }
+        const link = document.createElement('a');
+        link.download = 'Book1.xlsx';
+        link.href = URL.createObjectURL(
+          new Blob([buffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          })
+        );
+        link.click();
+      });
   }
   </script>
 </body>
@@ -139,6 +147,10 @@ const fs = require('fs');
 
 init('./node_modules/excelize-wasm/excelize.wasm.gz').then((excelize) => {
   const f = excelize.OpenReader(fs.readFileSync('Book1.xlsx'));
+  if (f.error) {
+    console.log(f.error);
+    return;
+  }
   // 设置单元格的值
   const ret1 = f.GetCellValue('Sheet1', 'B2');
   if (ret1.error) {
@@ -173,6 +185,10 @@ const fs = require('fs');
 
 init('./node_modules/excelize-wasm/excelize.wasm.gz').then((excelize) => {
   const f = excelize.NewFile();
+  if (f.error) {
+    console.log(f.error);
+    return;
+  }
   [
     [null, 'Apple', 'Orange', 'Pear'],
     ['Small', 2, 3, 3],
@@ -209,9 +225,9 @@ init('./node_modules/excelize-wasm/excelize.wasm.gz').then((excelize) => {
         Values: 'Sheet1!$B$4:$D$4',
       },
     ],
-    Title: {
-      Name: 'Fruit 3D Clustered Column Chart',
-    },
+    Title: [{
+      Text: 'Fruit 3D Clustered Column Chart',
+    }],
   });
   if (ret3.error) {
     console.log(ret3.error);
@@ -304,4 +320,4 @@ init('./node_modules/excelize-wasm/excelize.wasm.gz').then((excelize) => {
 
 Excel 徽标是 [Microsoft Corporation](https://aka.ms/trademarks-usage) 的商标，项目的图片是一种改编。
 
-gopher.{ai,svg,png} 由 [Takuya Ueda](https://twitter.com/tenntenn) 创作，遵循 [Creative Commons 3.0 Attributions license](http://creativecommons.org/licenses/by/3.0/) 创作共用授权条款。
+Go gopher 由 [Renee French](https://go.dev/doc/gopher/README) 创作，遵循 [Creative Commons 4.0 Attributions license](http://creativecommons.org/licenses/by/4.0/) 创作共用授权条款。

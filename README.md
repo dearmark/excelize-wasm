@@ -4,7 +4,7 @@
 
 <p align="center">
     <a href="https://www.npmjs.com/package/excelize-wasm"><img src="https://img.shields.io/npm/v/excelize-wasm.svg" alt="NPM version"></a>
-    <a href="https://github.com/xuri/excelize-wasm/actions/workflows/go.yml"><img src="https://github.com/xuri/excelize-wasm/actions/workflows/go.yml/badge.svg" alt="Build Status"></a>
+    <a href="https://github.com/xuri/excelize-wasm/actions/workflows/publish.yml"><img src="https://github.com/xuri/excelize-wasm/actions/workflows/publish.yml/badge.svg" alt="Build Status"></a>
     <a href="https://codecov.io/gh/xuri/excelize-wasm"><img src="https://codecov.io/gh/xuri/excelize-wasm/branch/main/graph/badge.svg" alt="Code Coverage"></a>
     <a href="https://goreportcard.com/report/github.com/xuri/excelize-wasm/cmd"><img src="https://goreportcard.com/badge/github.com/xuri/excelize-wasm/cmd" alt="Go Report Card"></a>
     <a href="https://pkg.go.dev/github.com/xuri/excelize/v2"><img src="https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white" alt="go.dev"></a>
@@ -29,7 +29,7 @@ Opera Mobile | &ge;64
 Samsung Internet | &ge;7.2
 UC Browser for Android | &ge;13.4
 QQ Browser | &ge;10.4
-Node.js | &ge;8.0.0
+Node.js | &ge;12.0.0
 Deno | &ge;1.0
 
 ## Basic Usage
@@ -58,6 +58,10 @@ const fs = require('fs');
 
 init('./node_modules/excelize-wasm/excelize.wasm.gz').then((excelize) => {
   const f = excelize.NewFile();
+  if (f.error) {
+    console.log(f.error);
+    return;
+  }
   // Create a new sheet.
   const { index } = f.NewSheet('Sheet2');
   // Set value of a cell.
@@ -100,6 +104,10 @@ Create spreadsheet in browser:
       .init('https://<your_hostname>/excelize-wasm/excelize.wasm.gz')
       .then((excelize) => {
         const f = excelize.NewFile();
+        if (f.error) {
+          console.log(f.error);
+          return;
+        }
         // Create a new sheet.
         const { index } = f.NewSheet('Sheet2');
         // Set value of a cell.
@@ -122,7 +130,7 @@ Create spreadsheet in browser:
         );
         link.click();
       });
-    }
+  }
   </script>
 </body>
 ```
@@ -139,6 +147,10 @@ const fs = require('fs');
 
 init('./node_modules/excelize-wasm/excelize.wasm.gz').then((excelize) => {
   const f = excelize.OpenReader(fs.readFileSync('Book1.xlsx'));
+  if (f.error) {
+    console.log(f.error);
+    return;
+  }
   // Set value of a cell.
   const ret1 = f.GetCellValue('Sheet1', 'B2');
   if (ret1.error) {
@@ -173,6 +185,10 @@ const fs = require('fs');
 
 init('./node_modules/excelize-wasm/excelize.wasm.gz').then((excelize) => {
   const f = excelize.NewFile();
+  if (f.error) {
+    console.log(f.error);
+    return;
+  }
   [
     [null, 'Apple', 'Orange', 'Pear'],
     ['Small', 2, 3, 3],
@@ -209,9 +225,9 @@ init('./node_modules/excelize-wasm/excelize.wasm.gz').then((excelize) => {
         Values: 'Sheet1!$B$4:$D$4',
       },
     ],
-    Title: {
-      Name: 'Fruit 3D Clustered Column Chart',
-    },
+    Title: [{
+      Text: 'Fruit 3D Clustered Column Chart',
+    }],
   });
   if (ret3.error) {
     console.log(ret3.error);
@@ -304,4 +320,4 @@ This program is under the terms of the BSD 3-Clause License. See [https://openso
 
 The Excel logo is a trademark of [Microsoft Corporation](https://aka.ms/trademarks-usage). This artwork is an adaptation.
 
-gopher.{ai,svg,png} was created by [Takuya Ueda](https://twitter.com/tenntenn). Licensed under the [Creative Commons 3.0 Attributions license](http://creativecommons.org/licenses/by/3.0/).
+The Go gopher was created by [Renee French](https://go.dev/doc/gopher/README). Licensed under the [Creative Commons 4.0 Attributions license](http://creativecommons.org/licenses/by/4.0/).

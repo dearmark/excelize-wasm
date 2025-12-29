@@ -1,18 +1,25 @@
-"use strict";
+const node =
+  typeof process !== "undefined" && process.versions && process.versions.node;
+const dynamicImport = (name) => Function("m", "return import(m)")(name);
 
-if (typeof window === "undefined") {
-  const nodeCrypto = require("crypto");
-  global.crypto = {
-    getRandomValues(b) {
-      nodeCrypto.randomFillSync(b);
-    },
-  };
-  global.performance = {
-    now() {
-      const [sec, nsec] = process.hrtime();
-      return sec * 1000 + nsec / 1000000;
-    },
-  };
+if (node && typeof globalThis.navigator === "undefined") {
+  !globalThis.crypto &&
+    (globalThis.crypto = {
+      async getRandomValues(b) {
+        const mod = await dynamicImport("node:crypto").catch(() =>
+          dynamicImport("crypto")
+        );
+        const { randomFillSync } = mod;
+        randomFillSync(b);
+      },
+    });
+  !globalThis.performance &&
+    (globalThis.performance = {
+      now() {
+        const [sec, nsec] = process.hrtime();
+        return sec * 1000 + nsec / 1000000;
+      },
+    });
 }
 (() => {
   const enosys = () => {
@@ -31,13 +38,13 @@ if (typeof window === "undefined") {
         O_TRUNC: -1,
         O_APPEND: -1,
         O_EXCL: -1,
+        O_DIRECTORY: -1,
       }, // unused
       writeSync(fd, buf) {
         outputBuf += decoder.decode(buf);
         const nl = outputBuf.lastIndexOf("\n");
         if (nl != -1) {
-          console.log(outputBuf.substr(0, nl));
-          outputBuf = outputBuf.substr(nl + 1);
+          outputBuf = outputBuf.substring(nl + 1);
         }
         return buf.length;
       },
@@ -152,6 +159,14 @@ if (typeof window === "undefined") {
     };
   }
 
+  if (!globalThis.path) {
+    globalThis.path = {
+      resolve(...pathSegments) {
+        return pathSegments.join("/");
+      },
+    };
+  }
+
   if (!globalThis.crypto) {
     throw new Error(
       "globalThis.crypto is not available, polyfill required (crypto.getRandomValues only)"
@@ -198,6 +213,10 @@ if (typeof window === "undefined") {
       const setInt64 = (addr, v) => {
         this.mem.setUint32(addr + 0, v, true);
         this.mem.setUint32(addr + 4, Math.floor(v / 4294967296), true);
+      };
+
+      const setInt32 = (addr, v) => {
+        this.mem.setUint32(addr + 0, v, true);
       };
 
       const getInt64 = (addr) => {
@@ -293,9 +312,18 @@ if (typeof window === "undefined") {
         );
       };
 
+      const testCallExport = (a, b) => {
+        this._inst.exports.testExport0();
+        return this._inst.exports.testExport(a, b);
+      };
+
       const timeOrigin = Date.now() - performance.now();
       this.importObject = {
-        go: {
+        _gotest: {
+          add: (a, b) => a + b,
+          callExport: testCallExport,
+        },
+        gojs: {
           // Go's SP does not change as long as no Go code is running. Some operations (e.g. calls, getters and setters)
           // may synchronously trigger a Go event handler. This makes Go code get executed in the middle of the imported
           // function. A goroutine can switch to a new stack if the current stack is too small (see morestack function).
@@ -353,18 +381,15 @@ if (typeof window === "undefined") {
             this._nextCallbackTimeoutID++;
             this._scheduledTimeouts.set(
               id,
-              setTimeout(
-                () => {
+              setTimeout(() => {
+                this._resume();
+                while (this._scheduledTimeouts.has(id)) {
+                  // for some reason Go failed to register the timeout event, log and try again
+                  // (temporary workaround for https://github.com/golang/go/issues/28975)
+                  console.warn("scheduleTimeoutEvent: missed timeout event");
                   this._resume();
-                  while (this._scheduledTimeouts.has(id)) {
-                    // for some reason Go failed to register the timeout event, log and try again
-                    // (temporary workaround for https://github.com/golang/go/issues/28975)
-                    console.warn("scheduleTimeoutEvent: missed timeout event");
-                    this._resume();
-                  }
-                },
-                getInt64(sp + 8) + 1 // setTimeout has been seen to fire up to 1 millisecond early
-              )
+                }
+              }, getInt64(sp + 8))
             );
             this.mem.setInt32(sp + 16, id, true);
           },
@@ -670,38 +695,22 @@ if (typeof window === "undefined") {
   };
 })();
 
-// import pako from 'pako';
+import pako from "pako";
 
-// export async function init(wasmPath) {
-//   const go = new Go();
-//   var buffer;
-//   if (typeof window === "undefined") {
-//     global.excelize = {};
-//   } else {
-//     window.excelize = {};
-//   }
-//   if (typeof window === "undefined") {
-//     const fs = require("fs");
-//     buffer = pako.ungzip(fs.readFileSync(wasmPath));
-//   } else {
-//     buffer = pako.ungzip(await (await fetch(wasmPath)).arrayBuffer());
-//   }
-//   if (buffer[0] === 0x1f && buffer[1] === 0x8b) {
-//     buffer = pako.ungzip(buffer);
-//   }
-//   const result = await WebAssembly.instantiate(buffer, go.importObject);
-//   go.run(result.instance);
-//   return excelize;
-// }
 export async function init(wasmPath) {
   const go = new Go();
   let buffer;
-  if (typeof window === "undefined") {
-    global.excelize = {};
+  globalThis.excelize = {};
+  if (node) {
+    const mod = await dynamicImport("node:fs").catch(() => dynamicImport("fs"));
+    const fs = mod.default || mod;
+    buffer = pako.ungzip(fs.readFileSync(wasmPath));
   } else {
-    window.excelize = {};
+    buffer = await (await fetch(wasmPath)).arrayBuffer();
   }
-  buffer = await (await fetch(wasmPath)).arrayBuffer();
+  if (buffer[0] === 0x1f && buffer[1] === 0x8b) {
+    buffer = pako.ungzip(buffer);
+  }
   const result = await WebAssembly.instantiate(buffer, go.importObject);
   go.run(result.instance);
   return excelize;
